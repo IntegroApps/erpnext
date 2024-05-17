@@ -1,5 +1,6 @@
 frappe.ready(async () => {
 	initialise_select_date();
+	await generateServicesSelect();
 });
 
 async function initialise_select_date() {
@@ -86,6 +87,130 @@ async function get_time_slots(date, timezone) {
 	return slots;
 }
 
+// #region Added by Raul
+
+async function get_services_appointment() {
+	let services = [];
+	await frappe.call({
+		method: 'erpnext.www.book_appointment.index.get_services_appointment',
+		args: {},
+		callback: (r) => {
+			services = r.message.length === 0 ? [{link_service: 'No hay servicios'}] : r.message;
+		},
+		error: (r) => {
+			frappe.show_alert(__("Something went wrong please try again"));
+		}
+	})
+
+	return services;
+}
+
+async function generateServicesSelect() {
+	let services = await get_services_appointment();
+	let select = document.getElementById('serviceSelect');
+	services.forEach(function (service) {
+		let opcion = document.createElement('option');
+		opcion.value = service.link_service;
+		opcion.textContent = service.link_service;
+		select.appendChild(opcion);
+	});
+	select.selectedIndex = -1;
+}
+
+async function get_agents_appointment(service_code) {
+	let agents = [];
+	await frappe.call({
+		method: 'erpnext.www.book_appointment.index.get_agents_service_appointment',
+		args: {
+			service_code
+		},
+		callback: (r) => {
+			agents = r.message.length === 0 ? [{parent: 'No hay agentes'}] : r.message;
+		},
+		error: (r) => {
+			frappe.show_alert(__("Something went wrong please try again"));
+		}
+	})
+
+	return agents;
+}
+
+async function generateAgentsSelect(agents) {
+	let select = document.getElementById('agentsSelect');
+	select.innerHTML = '';
+	agents.forEach(function (agent) {
+		let opcion = document.createElement('option');
+		opcion.value = agent.parent;
+		opcion.textContent = agent.parent;
+		select.appendChild(opcion);
+	});
+	select.selectedIndex = -1;
+
+}
+
+async function onChange_Service(){
+	let selectValue = document.getElementById('serviceSelect').value;
+	let agents = await get_agents_appointment(selectValue);
+	window.available_agents = await get_available_agents();
+	const agentes_disponibles = agents.filter(agent => !agenteOcupado(agent.parent))
+	generateAgentsSelect(agentes_disponibles);	
+}
+
+function agenteOcupado(agente){
+	const citas_Agente = window.available_agents.filter(cita => cita.booking_agent === agente)
+	return citas_Agente.length > 0;
+}
+
+async function get_name_service(employee,service_code) {
+	let name;
+	await frappe.call({
+		method: 'erpnext.www.book_appointment.index.get_name_service',
+		args: {
+			employee,
+			service_code
+		},
+		callback: (r) => {
+			name = r.message;
+		},
+		error: (r) => {
+			frappe.show_alert(__("Something went wrong please try again"));
+		}
+	})
+	return name;
+}
+
+async function onChange_Agent(){
+	let employee = document.getElementById('agentsSelect').value;
+	let service_code = document.getElementById('serviceSelect').value;
+	window.nameService = await get_name_service(employee,service_code);
+}
+
+async function get_available_agents() {
+	let scheduled_time = window.selected_date + " " +window.selected_time;
+	let end_scheduled_time = moment(scheduled_time);
+	end_scheduled_time = end_scheduled_time.add(window.appointment_settings.appointment_duration,'minutes').format('YYYY-MM-DD HH:mm:ss');
+	window.end_scheduled_time = end_scheduled_time;
+	let service = document.getElementById("serviceSelect").value;
+	let agents = [];
+	await frappe.call({
+		method: 'erpnext.www.book_appointment.index.get_available_agents',
+		args: {
+			scheduled_time,
+			service,
+			end_scheduled_time
+		},
+		callback: (r) => {
+			agents = r.message;
+		},
+		error: (r) => {
+			frappe.show_alert(__("Something went wrong please try again"));
+		}
+	})
+	return agents;
+}
+
+//#endregion 
+
 async function update_time_slots(selected_date, selected_timezone) {
 	let timeslot_container = document.getElementById("timeslot-container");
 	window.slots = await get_time_slots(selected_date, selected_timezone);
@@ -93,6 +218,7 @@ async function update_time_slots(selected_date, selected_timezone) {
 	if (window.slots.length <= 0) {
 		let message_div = document.createElement("p");
 		message_div.innerHTML = __("There are no slots available on this date");
+		message_div.style.textAlign ='center'
 		timeslot_container.appendChild(message_div);
 		return;
 	}
@@ -131,7 +257,7 @@ function get_slot_layout(time) {
 	let start_time_string = moment(time).tz(timezone).format("LT");
 	let end_time = moment(time).tz(timezone).add(window.appointment_settings.appointment_duration, "minutes");
 	let end_time_string = end_time.format("LT");
-	return `<span style="font-size: 1.2em;">${start_time_string}</span><br><span class="text-muted small">${__(
+	return `<span style="font-size: 1.2em;">${start_time_string} ${__(
 		"to"
 	)} ${end_time_string}</span>`;
 }
@@ -214,11 +340,11 @@ function setup_search_params() {
 }
 async function submit() {
 	let button = document.getElementById("submit-button");
-	button.disabled = true;
+	// button.disabled = true;
 	let form = document.querySelector("#customer-form");
 	if (!form.checkValidity()) {
 		form.reportValidity();
-		button.disabled = false;
+		// button.disabled = false;
 		return;
 	}
 	let contact = get_form_data();
@@ -246,7 +372,7 @@ async function submit() {
 		},
 		error: (err) => {
 			frappe.show_alert(__("Something went wrong please try again"));
-			button.disabled = false;
+			// button.disabled = false;
 		},
 	});
 }
@@ -255,5 +381,81 @@ function get_form_data() {
 	let contact = {};
 	let inputs = ["name", "skype", "number", "notes", "email"];
 	inputs.forEach((id) => (contact[id] = document.getElementById(`customer_${id}`).value));
+	contact["agent_services"] = window.nameService[0].name;
+	contact["booking_agent"] = document.getElementById(`agentsSelect`).value;
+	contact["end_scheduled_time"] = window.end_scheduled_time;
 	return contact;
 }
+
+const dateDisplay = document.getElementById("dateDisplay");
+const daysContainer = document.getElementById("daysContainer");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+
+let currentDate = new Date();
+
+function displayDates() {
+	dateDisplay.innerText = currentDate.toLocaleDateString("es-ES", {
+		// month: "long",
+		year: "numeric"
+	});
+
+	daysContainer.innerHTML = "";
+
+	let startOfWeek = getStartOfWeek(currentDate);
+
+	for (let i = 0; i < 7; i++) {
+		const dayContainer = document.createElement("div");
+		dayContainer.classList.add("day-container");
+
+		const monthLabel = document.createElement("div");
+		monthLabel.classList.add("month-label");
+		monthLabel.innerText = startOfWeek.toLocaleDateString("es-ES", {
+			month: "long"
+		});
+
+		const dayCircle = document.createElement("div");
+		dayCircle.classList.add("day-circle");
+		dayCircle.innerText = startOfWeek.getDate();
+
+		// if(startOfWeek.getDate() === 1){
+		dayContainer.appendChild(monthLabel);
+		// }
+
+		const day = new Date(startOfWeek.getTime()); // Creamos una copia de startOfWeek
+		day.setDate(day.getDate()); // Sumamos i al día de la copia
+		dayCircle.addEventListener("click", () => {
+			// handleDayClick(day.getDate());
+			console.log("getDate():",day)
+			let date_picker = document.getElementById("appointment-date");
+			date_picker.value = day.toISOString().slice(0,10);
+			on_date_or_timezone_select()
+		});
+
+		dayContainer.appendChild(dayCircle);
+		daysContainer.appendChild(dayContainer);
+
+		startOfWeek.setDate(startOfWeek.getDate() + 1); // Siguiente día
+	}
+}
+
+function handleDayClick(day) {
+	alert(`Hiciste clic en el día ${day}`);
+}
+
+function getStartOfWeek(date) {
+	const startOfWeek = new Date(date);
+	return startOfWeek;
+}
+
+prevBtn.addEventListener("click", () => {
+	currentDate.setDate(currentDate.getDate() - 7); // Retrocede 7 días
+	displayDates();
+});
+
+nextBtn.addEventListener("click", () => {
+	currentDate.setDate(currentDate.getDate() + 7); // Avanza 7 días
+	displayDates();
+});
+
+displayDates();

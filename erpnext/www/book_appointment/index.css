@@ -1,11 +1,11 @@
 .time-slot {
-    margin-bottom: 2em;
+    margin-bottom: 0.5em;
     margin-left: 0.5em;
     margin-right: 0.5em;
     border-radius: 0.4em;
     cursor: pointer;
     border: 0.5px solid #cccccc;
-    min-height: 75px;
+    min-height: 50px;
     padding: 0.5em 1em;
 }
 
@@ -13,20 +13,24 @@
     #submit-button-area {
         display: grid;
         grid-template-areas:
-        "submit"
-        "back";
+            "submit"
+            "back";
     }
 }
-#customer-form{
+
+#customer-form {
     border-color: black;
 }
-#customer-form ::placeholder{
+
+#customer-form ::placeholder {
     color: #ddd;
 }
-#timeslot-container{
-	display: flex;
+
+#timeslot-container {
+    display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    flex-direction: column;
 }
 
 .time-slot:hover {
@@ -45,9 +49,99 @@
 
 .time-slot.selected {
     color: white;
-    background: var(--primary-color);
+    /* background: var(--primary-color); */
+    background:#ED99AC;
 }
 
 .time-slot.selected .text-muted {
     color: #EDF2F7 !important;
 }
+
+/*#region Add by Raul */
+
+.date-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#main-container {
+    display: flex;
+    align-items: center;
+}
+
+#prevBtn,
+#nextBtn {
+    background-color: #ED99AC;
+    width: 30px;
+    height: 30px;
+}
+
+
+.days-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.day-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 15px;
+}
+
+
+.day-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: #ED99AC;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+
+.month-label {
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+
+label[for="labelServiceSelect"] {
+    color: #999;
+}
+
+#labelServiceSelect {
+    margin: 10px 0px 0px 0px !important;
+}
+
+#serviceSelect {
+    padding: 0px !important;
+    margin: 0px !important;
+}
+
+label[for="labelAgentSelect"] {
+    color: #999;
+}
+
+#labelAgentSelect {
+    margin: 10px 0px 0px 0px !important;
+}
+
+#agentsSelect {
+    padding: 0px !important;
+    margin: 0px !important;
+}
+
+@media (max-width: 430px) {
+    .days-container {
+        /* display: flex;
+        flex-wrap: wrap; */
+        flex-direction: column;
+    }
+}
+
+/*#endregion Add by Raul */
