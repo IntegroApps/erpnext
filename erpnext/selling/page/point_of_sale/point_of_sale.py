@@ -3,6 +3,7 @@
 
 
 import json
+from typing import Dict, Optional
 
 import frappe
 from frappe.utils import cint
@@ -197,14 +198,16 @@ def get_items(start, page_length, price_list, item_group, pos_profile, search_te
 
 
 @frappe.whitelist()
-def search_for_serial_or_batch_or_barcode_number(search_value: str) -> dict[str, str | None]:
+def search_for_serial_or_batch_or_barcode_number(search_value: str) -> Dict[str, Optional[str]]:
 	return scan_barcode(search_value)
 
 
 def get_conditions(search_term):
 	condition = "("
 	condition += """item.name like {search_term}
-		or item.item_name like {search_term}""".format(search_term=frappe.db.escape("%" + search_term + "%"))
+		or item.item_name like {search_term}""".format(
+		search_term=frappe.db.escape("%" + search_term + "%")
+	)
 	condition += add_search_fields_condition(search_term)
 	condition += ")"
 
@@ -216,7 +219,7 @@ def add_search_fields_condition(search_term):
 	search_fields = frappe.get_all("POS Search Fields", fields=["fieldname"])
 	if search_fields:
 		for field in search_fields:
-			condition += " or item.`{}` like {}".format(
+			condition += " or item.`{0}` like {1}".format(
 				field["fieldname"], frappe.db.escape("%" + search_term + "%")
 			)
 	return condition
@@ -246,8 +249,10 @@ def item_group_query(doctype, txt, searchfield, start, page_len, filters):
 			cond = cond % tuple(item_groups)
 
 	return frappe.db.sql(
-		f""" select distinct name from `tabItem Group`
-			where {cond} and (name like %(txt)s) limit {page_len} offset {start}""",
+		""" select distinct name from `tabItem Group`
+			where {condition} and (name like %(txt)s) limit {page_len} offset {start}""".format(
+			condition=cond, start=start, page_len=page_len
+		),
 		{"txt": "%%%s%%" % txt},
 	)
 
@@ -292,13 +297,13 @@ def get_past_order_list(search_term, status, limit=20):
 	if search_term and status:
 		invoices_by_customer = frappe.db.get_all(
 			"POS Invoice",
-			filters={"customer": ["like", f"%{search_term}%"], "status": status},
+			filters={"customer": ["like", "%{}%".format(search_term)], "status": status},
 			fields=fields,
 			page_length=limit,
 		)
 		invoices_by_name = frappe.db.get_all(
 			"POS Invoice",
-			filters={"name": ["like", f"%{search_term}%"], "status": status},
+			filters={"name": ["like", "%{}%".format(search_term)], "status": status},
 			fields=fields,
 			page_length=limit,
 		)
@@ -356,6 +361,8 @@ def set_customer_info(fieldname, customer, value=""):
 def get_pos_profile_data(pos_profile):
 	pos_profile = frappe.get_doc("POS Profile", pos_profile)
 	pos_profile = pos_profile.as_dict()
+	pos_profile.custom_terminal_token = "token"
+	pos_profile.custom_terminal_id = "terminal"
 
 	_customer_groups_with_children = []
 	for row in pos_profile.customer_groups:

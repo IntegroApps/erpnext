@@ -186,18 +186,19 @@ erpnext.PointOfSale.Controller = class {
 	prepare_menu() {
 		this.page.clear_menu();
 
-		this.page.add_menu_item(__("Open Form View"), this.open_form_view.bind(this), false, "Ctrl+F");
+		// [Goyo] - Comment Form View
+		//this.page.add_menu_item(__("Open Form View"), this.open_form_view.bind(this), false, "Ctrl+F");
 
 		this.page.add_menu_item(
-			__("Toggle Recent Orders"),
+			__("Ver Ordenes Recientes"),
 			this.toggle_recent_order.bind(this),
 			false,
 			"Ctrl+O"
 		);
 
-		this.page.add_menu_item(__("Save as Draft"), this.save_draft_invoice.bind(this), false, "Ctrl+S");
+		this.page.add_menu_item(__("Guardar Venta"), this.save_draft_invoice.bind(this), false, "Ctrl+S");
 
-		this.page.add_menu_item(__("Close the POS"), this.close_pos.bind(this), false, "Shift+Ctrl+C");
+		this.page.add_menu_item(__("Cerrar Caja"), this.close_pos.bind(this), false, "Shift+Ctrl+C");
 	}
 
 	open_form_view() {
@@ -234,6 +235,9 @@ erpnext.PointOfSale.Controller = class {
 				frappe.run_serially([
 					() => frappe.dom.freeze(),
 					() => this.make_new_invoice(),
+					() => this.toggle_components(false),
+					() => this.cart.toggle_component(true), // Add by Javier to return main POS
+					() => this.item_selector.toggle_component(true), // Add by Javier to return main POS
 					() => frappe.dom.unfreeze(),
 				]);
 			});
@@ -289,6 +293,8 @@ erpnext.PointOfSale.Controller = class {
 					// will add/remove LP payment method
 					this.payment.render_loyalty_points_payment_mode();
 				},
+
+				item_selected: (args) => this.on_cart_update(args),
 			},
 		});
 	}
@@ -389,10 +395,60 @@ erpnext.PointOfSale.Controller = class {
 						this.order_summary.load_summary_of(this.frm.doc, true);
 						frappe.show_alert({
 							indicator: "green",
-							message: __("POS invoice {0} created successfully", [r.doc.name]),
+							message: __("POS invoice {0} created succesfully", [r.doc.name]),
 						});
 					});
 				},
+
+				submit_invoice_after_mp: () => {
+					this.frm.savesubmit().then((r) => {
+						frappe.show_alert({
+							indicator: "green",
+							message: __("POS invoice {0} created succesfully", [this.frm.doc.name]),
+						});
+						frappe.run_serially([
+							() => frappe.dom.freeze(),
+							() => this.make_new_invoice(),
+							() => this.toggle_components(false),
+							() => this.cart.toggle_component(true),
+							() => this.item_selector.toggle_component(true), // Add by Javier to return main POS
+							() => frappe.dom.unfreeze(),
+						]); 
+					});
+				},
+				// Added by Javier
+				delete_invoice_after_mp: (name) =>{
+					frappe.model.delete_doc(this.frm.doc.doctype, name, () => {
+						this.recent_order_list.refresh_list();
+					});
+					frappe.show_alert({
+						indicator: "red",
+						message: __("POS invoice {0} deleted", [this.frm.doc.name]),
+					});
+					frappe.run_serially([
+						() => frappe.dom.freeze(),
+						() => this.make_new_invoice(),
+						() => this.toggle_components(false),
+						() => this.cart.toggle_component(true),
+						() => this.item_selector.toggle_component(true), // Add by Javier to return main POS
+						() => frappe.dom.unfreeze(),
+					]); 
+				},
+				// Added by Javier
+				cancel_invoice: (name) => {
+					frappe.model.delete_doc(this.frm.doc.doctype, name, () => {
+						frappe.run_serially([
+							() => frappe.dom.freeze(),
+							() => this.make_new_invoice(),
+							() => this.toggle_components(false),
+							() => this.cart.toggle_component(true),
+							() => this.item_selector.toggle_component(true), // Add by Javier to return main POS
+							() => frappe.dom.unfreeze(),
+						]); 
+						this.recent_order_list.refresh_list();
+					});
+					
+				}
 			},
 		});
 	}
@@ -547,16 +603,55 @@ erpnext.PointOfSale.Controller = class {
 
 	async on_cart_update(args) {
 		frappe.dom.freeze();
-		if (this.frm.doc.set_warehouse != this.settings.warehouse)
-			this.frm.doc.set_warehouse = this.settings.warehouse;
 		let item_row = undefined;
 		try {
 			let { field, value, item } = args;
 			item_row = this.get_item_from_frm(item);
 			const item_row_exists = !$.isEmptyObject(item_row);
 
+			//Legacy logica
 			const from_selector = field === "qty" && value === "+1";
 			if (from_selector) value = flt(item_row.stock_qty) + flt(value);
+
+			//Nueva Logica Javier para agregar, restar y eliminar items
+		/*
+			var from_selector = false
+			if(field === "qty" && value === "+1"){
+				from_selector = field === "qty" && value === "+1";
+				value = flt(item_row.stock_qty) + flt(value);
+			}
+			if(field === "qty" && value === "-1"){
+				if(flt(item_row.stock_qty) === 1) {
+					//Remove item
+					frappe.dom.unfreeze();
+					frappe.model 
+					.set_value(item_row.doctype, item_row.name, field, 0)
+					.then(() => {
+						frappe.model.clear_doc(item_row.doctype, item_row.name);
+						this.update_cart_html(item_row, true);
+						//this.item_details.toggle_item_details_section(null);
+						frappe.dom.unfreeze();
+					})
+				}else{
+					//from_selector = field === "qty" && value === "-1";
+					value = flt(item_row.stock_qty) + flt(value);
+					await frappe.model.set_value(item_row.doctype, item_row.name, field, value);
+					this.update_cart_html(item_row);
+				}	
+			}
+			if(field === "qty" && value === "0"){ 
+				//Remove Item
+				frappe.dom.unfreeze();
+				frappe.model 
+				.set_value(item_row.doctype, item_row.name, field, 0)
+				.then(() => {
+					frappe.model.clear_doc(item_row.doctype, item_row.name);
+					this.update_cart_html(item_row, true);
+					//this.item_details.toggle_item_details_section(null);
+					frappe.dom.unfreeze();
+				})
+			}
+		*/
 
 			if (item_row_exists) {
 				if (field === "qty") value = flt(value);
@@ -572,20 +667,17 @@ erpnext.PointOfSale.Controller = class {
 					this.update_cart_html(item_row);
 				}
 			} else {
-				if (!this.frm.doc.customer) return this.raise_customer_selection_alert();
-
+				//if (!this.frm.doc.customer) return this.frm.doc.customer="Grant Plastics Ltd.";//[Goyo] - Set Default Customerthis.raise_customer_selection_alert();
+				/*
+				if (!this.frm.doc.customer){
+					this.frm.doc.customer = "Publico General." // Added by Javier
+				} 
+				*/
+				
 				const { item_code, batch_no, serial_no, rate, uom } = item;
 
 				if (!item_code) return;
 
-				if (rate == undefined || rate == 0) {
-					frappe.show_alert({
-						message: __("Price is not set for the item."),
-						indicator: "orange",
-					});
-					frappe.utils.play_sound("error");
-					return;
-				}
 				const new_item = { item_code, batch_no, rate, uom, [field]: value };
 
 				if (serial_no) {
@@ -694,7 +786,7 @@ erpnext.PointOfSale.Controller = class {
 		const is_stock_item = resp[1];
 
 		frappe.dom.unfreeze();
-		const bold_uom = item_row.uom.bold();
+		const bold_uom = item_row.stock_uom.bold();
 		const bold_item_code = item_row.item_code.bold();
 		const bold_warehouse = warehouse.bold();
 		const bold_available_qty = available_qty.toString().bold();

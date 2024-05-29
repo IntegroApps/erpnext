@@ -3,8 +3,8 @@ erpnext.PointOfSale.Payment = class {
 	constructor({ events, wrapper }) {
 		this.wrapper = wrapper;
 		this.events = events;
-
 		this.init_component();
+		this.listener = false;
 	}
 
 	init_component() {
@@ -17,11 +17,12 @@ erpnext.PointOfSale.Payment = class {
 	prepare_dom() {
 		this.wrapper.append(
 			`<section class="payment-container">
-				<div class="section-label payment-section">${__("Payment Method")}</div>
+				<div class="section-label payment-section">${__("Forma de Pago")}</div>
 				<div class="payment-modes"></div>
+
 				<div class="fields-numpad-container">
 					<div class="fields-section">
-						<div class="section-label">${__("Additional Information")}</div>
+						<div class="section-label">${__("Informacion Adicional")}</div>
 						<div class="invoice-fields"></div>
 					</div>
 					<div class="number-pad"></div>
@@ -29,7 +30,10 @@ erpnext.PointOfSale.Payment = class {
 				<div class="totals-section">
 					<div class="totals"></div>
 				</div>
-				<div class="submit-order-btn">${__("Complete Order")}</div>
+				<div>
+					<div class="cancel-order-btn">${__("Cancelar")}</div>
+					<div class="submit-order-btn">${__("Completar Venta")}</div>
+				</div>
 			</section>`
 		);
 		this.$component = this.wrapper.find(".payment-container");
@@ -95,7 +99,7 @@ erpnext.PointOfSale.Payment = class {
 				[1, 2, 3],
 				[4, 5, 6],
 				[7, 8, 9],
-				[".", 0, "Delete"],
+				[".", 0, "Eliminar"],
 			],
 		});
 
@@ -104,10 +108,11 @@ erpnext.PointOfSale.Payment = class {
 
 	on_numpad_clicked($btn) {
 		const button_value = $btn.attr("data-button-value");
-
+		
 		highlight_numpad_btn($btn);
 		this.numpad_value =
-			button_value === "delete" ? this.numpad_value.slice(0, -1) : this.numpad_value + button_value;
+		
+		button_value === "eliminar" ? this.numpad_value.slice(0, -1) : this.numpad_value + button_value;
 		this.selected_mode.$input.get(0).focus();
 		this.selected_mode.set_value(this.numpad_value);
 
@@ -119,39 +124,91 @@ erpnext.PointOfSale.Payment = class {
 		}
 	}
 
+	// Added by Javier
+	get_payment_intents(id, name, pos_profile){
+		const doc = this.events.get_frm().doc;
+		const frm = this.events.get_frm();
+		frappe.call({
+			method: 'get_payment_intents',
+			args: {
+				id: id,
+				pos_profile: pos_profile
+			},
+			callback: (r) => {
+				if(r.code !== "200"){
+					clearTimeout(this.listener)
+				}
+				if(r.status == "ON_TERMINAL" && doc.custom_mp_transaction_status != "ON_TERMINAL"){
+
+				}
+				if(r.status == "CANCELED"){
+					doc.custom_mp_transaction_status = r.status;
+					frappe.msgprint("Transacción cancelada")
+					//frm.save()
+					//this.events.delete_invoice_after_mp(name);
+					clearTimeout(this.listener) 
+					
+				}
+				if(r.status == "FINISHED"){ 
+					doc.custom_mp_transaction_status = r.status;
+					frappe.msgprint("Transacción finalizada");
+					setTimeout(function() {
+						// Buscar el botón de cerrar del modal del mensaje y hacer clic en él
+						var closeButton = document.querySelector('.btn-modal-close');
+						if (closeButton) {
+							closeButton.click();
+						}
+					}, 500);
+					//this.events.submit_invoice_after_mp();
+					this.events.submit_invoice();
+					clearTimeout(this.listener)
+				}
+			},
+			error: (r) => {
+				//clearTimeout(this.listener)
+			}
+		})
+	}
+
 	bind_events() {
 		const me = this;
-
 		this.$payment_modes.on("click", ".mode-of-payment", function (e) {
 			const mode_clicked = $(this);
 			// if clicked element doesn't have .mode-of-payment class then return
 			if (!$(e.target).is(mode_clicked)) return;
 
+			me.numpad_value = ""; // Added by Javier
+
 			const scrollLeft =
 				mode_clicked.offset().left - me.$payment_modes.offset().left + me.$payment_modes.scrollLeft();
 			me.$payment_modes.animate({ scrollLeft });
-
+			
 			const mode = mode_clicked.attr("data-mode");
 
 			// hide all control fields and shortcuts
-			$(`.mode-of-payment-control`).css("display", "none");
-			$(`.cash-shortcuts`).css("display", "none");
+			$(`.mode-of-payment-control`).css("display", "none"); //modified from none to block by Javier 
+			$(`.cash-shortcuts`).css("display", "none"); //modified from none to grid by Javier 
 			me.$payment_modes.find(`.pay-amount`).css("display", "inline");
 			me.$payment_modes.find(`.loyalty-amount-name`).css("display", "none");
 
 			// remove highlight from all mode-of-payments
-			$(".mode-of-payment").removeClass("border-primary");
+			$(".mode-of-payment").removeClass("border-primary"); // Modified by Javier
 
 			if (mode_clicked.hasClass("border-primary")) {
 				// clicked one is selected then unselect it
 				mode_clicked.removeClass("border-primary");
 				me.selected_mode = "";
+				me.selected_mode = me[`${mode}_control`];
+				me.selected_mode && me.selected_mode.$input.get(0).focus();
+				me.auto_set_remaining_amount();
 			} else {
 				// clicked one is not selected then select it
 				mode_clicked.addClass("border-primary");
+				// Commented by Javier
 				mode_clicked.find(".mode-of-payment-control").css("display", "flex");
 				mode_clicked.find(".cash-shortcuts").css("display", "grid");
-				me.$payment_modes.find(`.${mode}-amount`).css("display", "none");
+				me.$payment_modes.find(`.${mode}-amount`).css("display", "block");
+				//////////////
 				me.$payment_modes.find(`.${mode}-name`).css("display", "inline");
 
 				me.selected_mode = me[`${mode}_control`];
@@ -199,12 +256,128 @@ erpnext.PointOfSale.Payment = class {
 			me.selected_mode.set_value(value);
 		});
 
+		/* Remove
+		this.$component.on("click", ".mp-btn", () => {
+			const doc = this.events.get_frm().doc;
+			const paid_amount = doc.paid_amount;
+			const frm = this.events.get_frm();
+			var total = 0;
+			var listener = false;
+			
+			if (doc.payments && doc.payments.length > 0) {
+				doc.payments.forEach(function(payment) {					
+					if(payment.mode_of_payment == "Terminal MP"){
+						total = payment.amount
+					}
+				});			
+			}
+			
+			frappe.call({
+				method: 'create_payment_intents',
+				args: {
+					total: total,
+					PO_ID: doc.name
+				},
+				callback: (r) => {
+					if(r.code == "200"){
+						doc.custom_mp_transaction_id = r.id;
+						doc.custom_mp_transaction_status = r.status;
+						
+						frappe.msgprint("Cobro enviado a terminal con el id: " + r.id)
+
+						setTimeout(
+							this.listener = setInterval(
+								() => this.get_payment_intents(r.id, doc.name)
+								, 3000
+							)
+						, 3000)
+	
+					}
+				},
+				error: (r) => {
+					// on error
+				}
+			})
+		});
+		*/
+		this.$component.on("click", ".cancel-order-btn", () => {
+			const doc = this.events.get_frm().doc;
+			const frm = this.events.get_frm();
+	
+			this.events.delete_invoice_after_mp(doc.name);  
+		});
+
+		this.$component.on("click", ".submit-order-btn", () => {
+			const doc = this.events.get_frm().doc;
+			const paid_amount = doc.paid_amount;
+			const frm = this.events.get_frm();
+			const items = doc.items;
+			var total_tarjeta = 0;
+			var total_cash = 0;
+			var total_otro = 0;
+			var listener = false;
+
+			if (doc.payments && doc.payments.length > 0) {
+				doc.payments.forEach(function(payment) { 			
+					if(payment.mode_of_payment == "Terminal MP" && payment.amount > 0){
+						total_tarjeta = payment.amount
+					}else if(payment.mode_of_payment == "Cash" && payment.amount > 0){
+						total_cash = payment.amount
+					}else {
+						total_otro = payment.amount
+					}
+					
+				});			
+			}
+
+			if(total_tarjeta > 0 ){ 
+				frappe.call({
+					method: 'create_payment_intents',
+					args: {
+						pos_profile: doc.pos_profile,
+						total: total_tarjeta,
+						PO_ID: doc.name
+					},
+					callback: (r) => {
+						if(r.code == "200"){
+							doc.custom_mp_transaction_id = r.id;
+							doc.custom_mp_transaction_status = r.status;
+							
+							frappe.msgprint("Cobro enviado a terminal con el id: " + r.id)
+	
+							setTimeout(
+								this.listener = setInterval(
+									() => this.get_payment_intents(r.id, doc.name, doc.pos_profile)
+									, 3000
+								)
+							, 3000)
+		
+						}
+					},
+					error: (r) => {
+						// on error
+					}
+				})
+			}else { /*if(total_cash > 0 && total_tarjeta == 0)*/
+				if (paid_amount == 0 || !items.length) {
+					const message = items.lengt
+						? __("You cannot submit the order without payment.")
+						: __("You cannot submit empty order.");
+					frappe.show_alert({ message, indicator: "orange" });
+					frappe.utils.play_sound("error");
+					return;
+				}
+				this.events.submit_invoice(); 
+			}
+		});
+
+		/* Completar orden Legacy
 		this.$component.on("click", ".submit-order-btn", () => {
 			const doc = this.events.get_frm().doc;
 			const paid_amount = doc.paid_amount;
 			const items = doc.items;
 
-			if (!items.length || (paid_amount == 0 && doc.additional_discount_percentage != 100)) {
+			if (paid_amount == 0 || !items.length) {
 				const message = items.length
 					? __("You cannot submit the order without payment.")
 					: __("You cannot submit empty order.");
@@ -213,8 +386,9 @@ erpnext.PointOfSale.Payment = class {
 				return;
 			}
 
-			this.events.submit_invoice();
+			this.events.submit_invoice(); 
 		});
+		*/
 
 		frappe.ui.form.on("POS Invoice", "paid_amount", (frm) => {
 			this.update_totals_section(frm.doc);
@@ -280,9 +454,10 @@ erpnext.PointOfSale.Payment = class {
 		const grand_total = cint(frappe.sys_defaults.disable_rounded_total)
 			? doc.grand_total
 			: doc.rounded_total;
-		const remaining_amount = grand_total - doc.paid_amount;
 		const current_value = this.selected_mode ? this.selected_mode.get_value() : undefined;
-		if (!current_value && remaining_amount > 0 && this.selected_mode) {
+		const remaining_amount = grand_total - doc.paid_amount + current_value; //Changed by Javier
+
+		if (/*!current_value && */remaining_amount > 0 && this.selected_mode) { //Changed by Javier
 			this.selected_mode.set_value(remaining_amount);
 		}
 	}
@@ -390,10 +565,10 @@ erpnext.PointOfSale.Payment = class {
 
 					return `
 					<div class="payment-mode-wrapper">
-						<div class="mode-of-payment" data-mode="${mode}" data-payment-type="${payment_type}">
+						<div class="mode-of-payment" data-mode="${mode}" data-payment-type="${payment_type}" style="display:block">
 							${p.mode_of_payment}
 							<div class="${mode}-amount pay-amount">${amount}</div>
-							<div class="${mode} mode-of-payment-control"></div>
+							<div class="${mode} mode-of-payment-control" style="display:block"></div>
 						</div>
 					</div>
 				`;
@@ -408,7 +583,7 @@ erpnext.PointOfSale.Payment = class {
 				df: {
 					label: p.mode_of_payment,
 					fieldtype: "Currency",
-					placeholder: __("Enter {0} amount.", [__(p.mode_of_payment)]),
+					placeholder: __("Enter {0} amount.", [p.mode_of_payment]),
 					onchange: function () {
 						const current_value = frappe.model.get_value(p.doctype, p.name, "amount");
 						if (current_value != this.value) {
@@ -431,6 +606,7 @@ erpnext.PointOfSale.Payment = class {
 		this.render_loyalty_points_payment_mode();
 
 		this.attach_cash_shortcuts(doc);
+		//this.attach_mercado_pago_buttom(doc); //Remove buttom
 	}
 
 	focus_on_default_mop() {
@@ -465,7 +641,19 @@ erpnext.PointOfSale.Payment = class {
 			.find('[data-payment-type="Cash"]')
 			.find(".mode-of-payment-control")
 			.after(`<div class="cash-shortcuts">${shortcuts_html}</div>`);
+			
 	}
+
+	/* Remove 
+	attach_mercado_pago_buttom(doc) {
+		this.$payment_modes.find(".terminal_mp-shortcuts").remove();
+
+		this.$payment_modes
+			.find('[data-payment-type="Bank"]')
+			.find(".mode-of-payment-control")
+			.after(`<div class="mp-btn">${__("Pago con tarjeta")}</div>`)	
+	}
+	*/
 
 	get_cash_shortcuts(grand_total) {
 		let steps = [1, 5, 10];
@@ -483,6 +671,7 @@ erpnext.PointOfSale.Payment = class {
 			nearest_x = finalArr.indexOf(nearest_x) != -1 ? nearest_x + x : nearest_x;
 			return [...finalArr, nearest_x];
 		}, []);
+
 	}
 
 	render_loyalty_points_payment_mode() {

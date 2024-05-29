@@ -394,17 +394,19 @@ erpnext.PointOfSale.ItemDetails = class {
 
 	bind_auto_serial_fetch_event() {
 		this.$form_container.on("click", ".auto-fetch-btn", () => {
-			let frm = this.events.get_frm();
-			let item_row = this.item_row;
-			item_row.type_of_transaction = "Outward";
+			frappe.require("assets/erpnext/js/utils/serial_no_batch_selector.js", () => {
+				let frm = this.events.get_frm();
+				let item_row = this.item_row;
+				item_row.type_of_transaction = "Outward";
 
-			new erpnext.SerialBatchPackageSelector(frm, item_row, (r) => {
-				if (r) {
-					frappe.model.set_value(item_row.doctype, item_row.name, {
-						serial_and_batch_bundle: r.name,
-						qty: Math.abs(r.total_qty),
-					});
-				}
+				new erpnext.SerialBatchPackageSelector(frm, item_row, (r) => {
+					if (r) {
+						frappe.model.set_value(item_row.doctype, item_row.name, {
+							serial_and_batch_bundle: r.name,
+							qty: Math.abs(r.total_qty),
+						});
+					}
+				});
 			});
 		});
 	}

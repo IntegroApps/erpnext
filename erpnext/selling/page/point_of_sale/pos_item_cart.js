@@ -5,7 +5,7 @@ erpnext.PointOfSale.ItemCart = class {
 		this.customer_info = undefined;
 		this.hide_images = settings.hide_images;
 		this.allowed_customer_groups = settings.customer_groups;
-		this.allow_rate_change = settings.allow_rate_change;
+		this.allow_rate_change = settings.allow_rate_change; 
 		this.allow_discount_change = settings.allow_discount_change;
 		this.init_component();
 	}
@@ -45,11 +45,11 @@ erpnext.PointOfSale.ItemCart = class {
 		this.$component.append(
 			`<div class="cart-container">
 				<div class="abs-cart-container">
-					<div class="cart-label">${__("Item Cart")}</div>
+					<div class="cart-label">${__("Carrito de artículos")}</div>
 					<div class="cart-header">
-						<div class="name-header">${__("Item")}</div>
-						<div class="qty-header">${__("Quantity")}</div>
-						<div class="rate-amount-header">${__("Amount")}</div>
+						<div class="name-header">${__("Producto")}</div>
+						<div class="qty-header">${__("Cantidad")}</div>
+						<div class="rate-amount-header">${__("Monto")}</div>
 					</div>
 					<div class="cart-items-section"></div>
 					<div class="cart-totals-section"></div>
@@ -73,7 +73,7 @@ erpnext.PointOfSale.ItemCart = class {
 
 	make_no_items_placeholder() {
 		this.$cart_header.css("display", "none");
-		this.$cart_items_wrapper.html(`<div class="no-item-wrapper">${__("No items in cart")}</div>`);
+		this.$cart_items_wrapper.html(`<div class="no-item-wrapper">${__("No hay artículos en el carrito")}</div>`);
 	}
 
 	get_discount_icon() {
@@ -97,7 +97,7 @@ erpnext.PointOfSale.ItemCart = class {
 				<div class="item-qty-total-value">0.00</div>
 			</div>
 			<div class="net-total-container">
-				<div class="net-total-label">${__("Net Total")}</div>
+				<div class="net-total-label">${__("Total Neto")}</div>
 				<div class="net-total-value">0.00</div>
 			</div>
 			<div class="taxes-container"></div>
@@ -166,6 +166,8 @@ erpnext.PointOfSale.ItemCart = class {
 			me.toggle_customer_info(show);
 		});
 
+		// Comment by Javier April 22, 2024 para agregar los botones de mas, menos y delete en el articulo
+		
 		this.$cart_items_wrapper.on("click", ".cart-item-wrapper", function () {
 			const $cart_item = $(this);
 
@@ -182,6 +184,7 @@ erpnext.PointOfSale.ItemCart = class {
 			me.events.cart_item_clicked({ name: item_row_name });
 			this.numpad_value = "";
 		});
+				
 
 		this.$component.on("click", ".checkout-btn", async function () {
 			if ($(this).attr("style").indexOf("--blue-500") == -1) return;
@@ -207,6 +210,79 @@ erpnext.PointOfSale.ItemCart = class {
 			// called when discount is applied
 			this.update_totals_section(frm);
 		});
+
+		/* Added by Javier */
+		/*
+		this.$component.on("click", ".item-qty-minus-btn", function () {
+			const $item = $(this);
+			const item_code = unescape($item.attr("data-item-code"));
+			let batch_no = unescape($item.attr("data-batch-no"));
+			let serial_no = unescape($item.attr("data-serial-no"));
+			let uom = unescape($item.attr("data-uom"));
+			let rate = unescape($item.attr("data-rate"));
+
+			// escape(undefined) returns "undefined" then unescape returns "undefined"
+			batch_no = batch_no === "undefined" ? undefined : batch_no;
+			serial_no = serial_no === "undefined" ? undefined : serial_no;
+			uom = uom === "undefined" ? undefined : uom;
+			rate = rate === "undefined" ? undefined : rate;
+
+			me.events.item_selected({
+				field: "qty",
+				value: "-1",
+				item: { item_code, batch_no, serial_no, uom, rate },
+			});
+			
+		});
+		*/
+		/* Added by Javier */
+		/*
+		this.$component.on("click", ".item-qty-plus-btn", function () {
+			const $item = $(this);
+			const item_code = unescape($item.attr("data-item-code"));
+			let batch_no = unescape($item.attr("data-batch-no"));
+			let serial_no = unescape($item.attr("data-serial-no"));
+			let uom = unescape($item.attr("data-uom"));
+			let rate = unescape($item.attr("data-rate"));
+
+			// escape(undefined) returns "undefined" then unescape returns "undefined"
+			batch_no = batch_no === "undefined" ? undefined : batch_no;
+			serial_no = serial_no === "undefined" ? undefined : serial_no;
+			uom = uom === "undefined" ? undefined : uom;
+			rate = rate === "undefined" ? undefined : rate;
+
+			me.events.item_selected({
+				field: "qty",
+				value: "+1",
+				item: { item_code, batch_no, serial_no, uom, rate },
+			});
+			
+		});
+		*/
+		/* Added by Javier */
+		/*
+		this.$component.on("click", ".item-qty-delete-btn", function () {
+			const $item = $(this);
+			const item_code = unescape($item.attr("data-item-code"));
+			let batch_no = unescape($item.attr("data-batch-no"));
+			let serial_no = unescape($item.attr("data-serial-no"));
+			let uom = unescape($item.attr("data-uom"));
+			let rate = unescape($item.attr("data-rate"));
+
+			// escape(undefined) returns "undefined" then unescape returns "undefined"
+			batch_no = batch_no === "undefined" ? undefined : batch_no;
+			serial_no = serial_no === "undefined" ? undefined : serial_no;
+			uom = uom === "undefined" ? undefined : uom;
+			rate = rate === "undefined" ? undefined : rate;
+
+			me.events.item_selected({
+				field: "qty",
+				value: "0",
+				item: { item_code, batch_no, serial_no, uom, rate },
+			});
+			
+		});
+		*/
 	}
 
 	attach_shortcuts() {
@@ -289,6 +365,50 @@ erpnext.PointOfSale.ItemCart = class {
 			this.$cart_container.find(".cart-item-wrapper").not(item).css("background-color", "");
 		}
 	}
+
+	/*
+	make_customer_selector() {
+		this.$customer_section.html(`
+			<div class="customer-field"></div>
+		`);
+		const me = this;
+		const query = { query: "erpnext.controllers.queries.customer_query" };
+		const allowed_customer_group = this.allowed_customer_groups || [];
+		if (allowed_customer_group.length) {
+			query.filters = {
+				customer_group: ["in", allowed_customer_group],
+			};
+		}
+		this.customer_field = frappe.ui.form.make_control({
+			df: {
+				label: __("Customer"),
+				fieldtype: "Link",
+				options: "Customer",
+				placeholder: __("Search by customer name, phone, email."),
+				get_query: () => query,
+				onchange: function () {
+					if (this.value) {
+						const frm = me.events.get_frm();
+						frappe.dom.freeze();
+						frappe.model.set_value(frm.doc.doctype, frm.doc.name, "customer", this.value);
+						frm.script_manager.trigger("customer", frm.doc.doctype, frm.doc.name).then(() => {
+							frappe.run_serially([
+								() => me.fetch_customer_details(this.value),
+								() => me.events.customer_details_updated(me.customer_info),
+								() => me.update_customer_section(),
+								() => me.update_totals_section(),
+								() => frappe.dom.unfreeze(),
+							]);
+						});
+					}
+				},
+			},
+			parent: this.$customer_section.find(".customer-field"),
+			render_input: true,
+		});
+		this.customer_field.toggle_label(false);
+	}
+	*/
 
 	make_customer_selector() {
 		this.$customer_section.html(`
@@ -438,9 +558,10 @@ erpnext.PointOfSale.ItemCart = class {
 	}
 
 	update_customer_section() {
-		const me = this;
-		const { customer, email_id = "", mobile_no = "", image } = this.customer_info || {};
-
+		const me = this; 
+		//this.customer_info = {"customer": "Publico General."}; //Add by Javier
+		const { customer = "", email_id = "", mobile_no = "", image } = this.customer_info || {}; 
+		
 		if (customer) {
 			this.$customer_section.html(
 				`<div class="customer-details">
@@ -502,11 +623,11 @@ erpnext.PointOfSale.ItemCart = class {
 		const currency = this.events.get_frm().doc.currency;
 		this.$totals_section
 			.find(".net-total-container")
-			.html(`<div>${__("Net Total")}</div><div>${format_currency(value, currency)}</div>`);
+			.html(`<div>${__("Total Neto")}</div><div>${format_currency(value, currency)}</div>`);
 
 		this.$numpad_section
 			.find(".numpad-net-total")
-			.html(`<div>${__("Net Total")}: <span>${format_currency(value, currency)}</span></div>`);
+			.html(`<div>${__("Total Neto")}: <span>${format_currency(value, currency)}</span></div>`);
 	}
 
 	render_total_item_qty(items) {
@@ -517,22 +638,22 @@ erpnext.PointOfSale.ItemCart = class {
 
 		this.$totals_section
 			.find(".item-qty-total-container")
-			.html(`<div>${__("Total Quantity")}</div><div>${total_item_qty}</div>`);
+			.html(`<div>${__("Cantidad Total")}</div><div>${total_item_qty}</div>`);
 
 		this.$numpad_section
 			.find(".numpad-item-qty-total")
-			.html(`<div>${__("Total Quantity")}: <span>${total_item_qty}</span></div>`);
+			.html(`<div>${__("Cantidad Total")}: <span>${total_item_qty}</span></div>`);
 	}
 
 	render_grand_total(value) {
 		const currency = this.events.get_frm().doc.currency;
 		this.$totals_section
 			.find(".grand-total-container")
-			.html(`<div>${__("Grand Total")}</div><div>${format_currency(value, currency)}</div>`);
+			.html(`<div>${__("Gran Total")}</div><div>${format_currency(value, currency)}</div>`);
 
 		this.$numpad_section
 			.find(".numpad-grand-total")
-			.html(`<div>${__("Grand Total")}: <span>${format_currency(value, currency)}</span></div>`);
+			.html(`<div>${__("Gran Total")}: <span>${format_currency(value, currency)}</span></div>`);
 	}
 
 	render_taxes(taxes) {
@@ -625,25 +746,67 @@ erpnext.PointOfSale.ItemCart = class {
 			me.$cart_header.find(".rate-amount-header").css("width", max_width);
 			me.$cart_items_wrapper.find(".item-rate-amount").css("width", max_width);
 		}
-
+		
 		function get_rate_discount_html() {
 			if (item_data.rate && item_data.amount && item_data.rate !== item_data.amount) {
+				// Div original
+			    //<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
+				//Codigo para los botones de agreagr, eliminar y descontar item
+				/*
+				return `
+						<div class="item-qty-rate">
+						<div class="item-qty-minus-btn"
+							data-item-code="${escape(item_data.item_code)}" 
+							data-serial-no="${escape(item_data.serial_no)}"
+							data-batch-no="${escape(item_data.batch_no)}" 
+							data-uom="${escape(item_data.uom)}" 
+							data-rate="${escape(item_data.price_list_rate || 0)}"
+							title="${item_data.item_name}"
+						><i class="fa fa-minus"></i></div>
+						
+						<div class="item-qty"><span>${item_data.qty || 0}</span></div>
+
+						<div class="item-qty-plus-btn"
+							data-item-code="${escape(item_data.item_code)}" 
+							data-serial-no="${escape(item_data.serial_no)}"
+							data-batch-no="${escape(item_data.batch_no)}" 
+							data-uom="${escape(item_data.uom)}"
+							data-rate="${escape(item_data.price_list_rate || 0)}"
+							title="${item_data.item_name}"
+						><i class="fa fa-plus"></i></div>
+
+						<div class="item-rate-amount">
+							<div class="item-rate">${format_currency(item_data.amount, currency)}</div>
+							<div class="item-amount">${format_currency(item_data.rate, currency)}</div>
+						</div>
+						<div class="item-qty-delete-btn"
+							data-item-code="${escape(item_data.item_code)}" 
+							data-serial-no="${escape(item_data.serial_no)}"
+							data-batch-no="${escape(item_data.batch_no)}" 
+							data-uom="${escape(item_data.uom)}" 
+							data-rate="${escape(item_data.price_list_rate || 0)}"
+							title="${item_data.item_name}"
+						><i class="fa fa-trash"></i></div>
+					</div>`;
+					*/
+
 				return `
 					<div class="item-qty-rate">
-						<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
+						<div class="item-qty"><span>${item_data.qty || 0}</span></div>
 						<div class="item-rate-amount">
 							<div class="item-rate">${format_currency(item_data.amount, currency)}</div>
 							<div class="item-amount">${format_currency(item_data.rate, currency)}</div>
 						</div>
 					</div>`;
 			} else {
+				//<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
 				return `
 					<div class="item-qty-rate">
-						<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
+						<div class="item-qty"><span>${item_data.qty || 0}</span></div>
 						<div class="item-rate-amount">
 							<div class="item-rate">${format_currency(item_data.rate, currency)}</div>
 						</div>
-					</div>`;
+					</div>`; 
 			}
 		}
 
@@ -692,10 +855,12 @@ erpnext.PointOfSale.ItemCart = class {
 
 	toggle_checkout_btn(show_checkout) {
 		if (show_checkout) {
-			this.$totals_section.find(".checkout-btn").css("display", "flex");
+			this.$totals_section.find(".checkout-btn").css("display", "block");
+			this.$totals_section.find(".checkout-btn").css("text-align", "center");
 			this.$totals_section.find(".edit-cart-btn").css("display", "none");
 		} else {
 			this.$totals_section.find(".checkout-btn").css("display", "none");
+			this.$totals_section.find(".checkout-btn").css("text-align", "center");
 			this.$totals_section.find(".edit-cart-btn").css("display", "flex");
 		}
 	}
@@ -705,11 +870,13 @@ erpnext.PointOfSale.ItemCart = class {
 			this.$add_discount_elem.css("display", "flex");
 			this.$cart_container.find(".checkout-btn").css({
 				"background-color": "var(--blue-500)",
+				"text-align": "center",
 			});
 		} else {
 			this.$add_discount_elem.css("display", "none");
 			this.$cart_container.find(".checkout-btn").css({
 				"background-color": "var(--blue-200)",
+				"text-align": "center",
 			});
 		}
 	}
@@ -1055,9 +1222,11 @@ erpnext.PointOfSale.ItemCart = class {
 
 		if (frm.doc.docstatus === 1) {
 			this.$totals_section.find(".checkout-btn").css("display", "none");
+			this.$totals_section.find(".checkout-btn").css("text-align", "center");
 			this.$totals_section.find(".edit-cart-btn").css("display", "none");
 		} else {
-			this.$totals_section.find(".checkout-btn").css("display", "flex");
+			this.$totals_section.find(".checkout-btn").css("display", "block");
+			this.$totals_section.find(".checkout-btn").css("text-align", "center");
 			this.$totals_section.find(".edit-cart-btn").css("display", "none");
 		}
 
