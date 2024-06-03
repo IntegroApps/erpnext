@@ -355,6 +355,7 @@ erpnext.PointOfSale.PastOrderSummary = class {
 		const condition_btns_map = this.get_condition_btn_map(after_submission);
 
 		this.add_summary_btns(condition_btns_map);
+		this.print_receipt();
 	}
 
 	attach_document_info(doc) {
