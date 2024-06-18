@@ -54,7 +54,8 @@
   "apply_discount_on",
   "accounting_dimensions_section",
   "cost_center",
-  "dimension_col_break"
+  "dimension_col_break",
+  "whatsapp_endpoint"
  ],
  "fields": [
   {
@@ -375,6 +376,11 @@
    "fieldname": "disable_rounded_total",
    "fieldtype": "Check",
    "label": "Disable Rounded Total"
+  },
+  {
+   "fieldname": "whatsapp_endpoint",
+   "fieldtype": "Data",
+   "label": "WhatsApp Endpoint"
   }
  ],
  "icon": "icon-cog",
@@ -402,7 +408,7 @@
    "link_fieldname": "pos_profile"
   }
  ],
- "modified": "2024-03-27 13:10:16.476972",
+ "modified": "2024-06-14 14:20:49.228958",
  "modified_by": "Administrator",
  "module": "Accounts",
  "name": "POS Profile",

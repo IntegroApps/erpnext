@@ -15,12 +15,11 @@ class POSProfile(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
-		from frappe.types import DF
-
 		from erpnext.accounts.doctype.pos_customer_group.pos_customer_group import POSCustomerGroup
 		from erpnext.accounts.doctype.pos_item_group.pos_item_group import POSItemGroup
 		from erpnext.accounts.doctype.pos_payment_method.pos_payment_method import POSPaymentMethod
 		from erpnext.accounts.doctype.pos_profile_user.pos_profile_user import POSProfileUser
+		from frappe.types import DF
 
 		account_for_change_amount: DF.Link | None
 		allow_discount_change: DF.Check
@@ -55,6 +54,7 @@ class POSProfile(Document):
 		update_stock: DF.Check
 		validate_stock_on_save: DF.Check
 		warehouse: DF.Link
+		whatsapp_endpoint: DF.Data | None
 		write_off_account: DF.Link
 		write_off_cost_center: DF.Link
 		write_off_limit: DF.Currency

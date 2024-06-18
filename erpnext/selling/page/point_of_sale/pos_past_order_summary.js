@@ -46,13 +46,14 @@ erpnext.PointOfSale.PastOrderSummary = class {
 
 	init_email_print_dialog() {
 		const email_dialog = new frappe.ui.Dialog({
-			title: "Email Receipt",
+			title:"WhatsApp Receipt", //"Email Receipt",
 			fields: [
 				{ fieldname: "email_id", fieldtype: "Data", options: "Email", label: "Email ID", reqd: 1 },
 				{ fieldname: "content", fieldtype: "Small Text", label: "Message (if any)" },
 			],
-			primary_action: () => {
-				this.send_email();
+			primary_action: async () => {
+				// this.send_email();
+				await this.send_whatsapp();
 			},
 			primary_action_label: __("Send"),
 		});
@@ -204,6 +205,10 @@ erpnext.PointOfSale.PastOrderSummary = class {
 			this.email_dialog.show();
 		});
 
+		this.$summary_container.on("click", ".whatsapp-btn", () => {
+			this.send_whatsapp();
+		});
+
 		this.$summary_container.on("click", ".print-btn", () => {
 			this.print_receipt();
 		});
@@ -247,6 +252,72 @@ erpnext.PointOfSale.PastOrderSummary = class {
 			description: __("Edit Receipt"),
 			page: cur_page.page.page,
 		});
+	}
+
+	async send_whatsapp() {
+		const { customer_name, contact_mobile, contact_person,pos_profile,name: docname,total,doctype,letter_head,language } = this.doc;
+		const frm = this.events.get_frm();
+
+		const urlWhatsApp = (
+			await frappe.call({
+				method: "erpnext.selling.page.point_of_sale.point_of_sale.get_pos_profile_data",
+				args: {
+					pos_profile
+				},
+			})
+		).message.whatsapp_endpoint
+
+		let urlPrint = frappe.urllib.get_full_url(
+			"/printview?doctype=" +
+				encodeURIComponent(doctype) +
+				"&name=" +
+				encodeURIComponent(docname) +
+				"&trigger_print=1" +
+				"&format=" +
+				encodeURIComponent(frm.pos_print_format) +
+				"&no_letterhead=" +
+				(letter_head ? "0" : "1") +
+				"&letterhead=" +
+				encodeURIComponent(letter_head) +
+				(language ? "&_lang=" + language : "")
+		);
+		urlPrint = urlPrint.split('8000/')[1];
+
+		const dataWP = {
+			customer_name,
+			contact_person,
+			contact_mobile,//'526863475102'
+			docname,
+			total,
+			urlPrint
+		};
+
+		const requestOptions = {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(dataWP)
+		};
+		
+		fetch(urlWhatsApp, requestOptions)
+			.then(response => {
+				if (!response.ok) {
+					throw new Error('There were errors while sending whatsApp.');
+				}
+				return response.json();
+			})
+			.then(data => {
+				if(data.status === "accepted"){
+					frappe.show_alert({
+						message: __("WhatsApp sent successfully."),
+						indicator: "green",
+					});
+				}
+			})
+			.catch(error => {
+				frappe.msgprint(__("There were errors while sending whatsApp. Please try again."));
+			});
 	}
 
 	send_email() {
@@ -320,17 +391,17 @@ erpnext.PointOfSale.PastOrderSummary = class {
 
 	get_condition_btn_map(after_submission) {
 		if (after_submission)
-			return [{ condition: true, visible_btns: ["Print Receipt", "Email Receipt", "New Order"] }];
+			return [{ condition: true, visible_btns: ["Print Receipt", "WhatsApp Receipt", "New Order"] }];
 
 		return [
 			{ condition: this.doc.docstatus === 0, visible_btns: ["Edit Order", "Delete Order"] },
 			{
 				condition: !this.doc.is_return && this.doc.docstatus === 1,
-				visible_btns: ["Print Receipt", "Email Receipt", "Return"],
+				visible_btns: ["Print Receipt", "WhatsApp Receipt", "Return"],
 			},
 			{
 				condition: this.doc.is_return && this.doc.docstatus === 1,
-				visible_btns: ["Print Receipt", "Email Receipt"],
+				visible_btns: ["Print Receipt", "WhatsApp Receipt"],
 			},
 		];
 	}
