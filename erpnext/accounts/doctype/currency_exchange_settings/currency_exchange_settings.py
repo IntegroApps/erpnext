@@ -117,3 +117,12 @@ def get_api_endpoint(service_provider: str | None = None, use_http: bool = False
 
 		return protocol + api
 	return None
+
+@frappe.whitelist()
+def get_currency_by_posprofile(currency):
+	query = """
+	SELECT date, from_currency,to_currency, exchange_rate,date from `tabCurrency Exchange` tce 
+	where tce.to_currency =%s order by tce.date desc limit 1;
+	"""
+	result = frappe.db.sql(query,(currency),as_dict=True)
+	return result

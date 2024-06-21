@@ -528,7 +528,7 @@ erpnext.PointOfSale.Controller = class {
 			() => frappe.dom.freeze(),
 			() => this.make_sales_invoice_frm(),
 			() => this.set_pos_profile_data(),
-			() => this.set_pos_profile_status(),
+			async () => this.set_pos_profile_status(),
 			() => this.cart.load_invoice(),
 			() => frappe.dom.unfreeze(),
 		]);
@@ -597,8 +597,24 @@ erpnext.PointOfSale.Controller = class {
 		return this.frm.trigger("set_pos_data");
 	}
 
-	set_pos_profile_status() {
-		this.page.set_indicator(this.pos_profile, "blue");
+	async get_currency_by_posprofile(){
+
+		return (await this.frm.call({
+			method: "erpnext.accounts.doctype.currency_exchange_settings.currency_exchange_settings.get_currency_by_posprofile",
+			args: {
+				currency: this.frm.doc.currency
+			}
+		})).message;
+	}
+
+	async set_pos_profile_status() {
+		let [currency] = await this.get_currency_by_posprofile().then(resultado => {
+			return resultado;
+		}).catch(error => {
+			console.error("Error:", error.message);
+		});
+		this.page.set_indicator(`${this.pos_profile} - $${currency.exchange_rate}`, "blue");
+
 	}
 
 	async on_cart_update(args) {
